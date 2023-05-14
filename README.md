@@ -7,7 +7,7 @@ This repo contains benchmark ocean world analogue exerimental IRMS (isotope rati
 
 ## Analysis Script
 
-We also provide an analysis R script to classify biotic versus abiotic samples using NPDR (nearest-neighbor projected distance regression) and random forest. Install the NPDR R library as follows.
+We also provide an analysis R script to classify biotic versus abiotic samples (i.e., biosignature models) using NPDR (nearest-neighbor projected distance regression) and random forest. Install the NPDR R library as follows.
 
 ``` r
 # install.packages("devtools") # uncomment to install devtools
