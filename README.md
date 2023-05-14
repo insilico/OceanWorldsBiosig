@@ -3,7 +3,7 @@ Authors: Lily Clough and Brett McKinney.
 
 ## IRMS Data
 
-This repo contains benchmark ocean world analogue exerimental IRMS (isotope ratio mass spec) data for biotic and abiotic samples. Download directly from this site to use the data. 
+This repo contains benchmark ocean world analogue exerimental Isotope Ratio Mass Spec (IRMS) data for biotic and abiotic samples. Download directly from this site to use the data. 
 
 ## Analysis Script
 
@@ -12,12 +12,10 @@ We also provide an analysis R script to classify biotic versus abiotic samples (
 ``` r
 # install.packages("devtools") # uncomment to install devtools
 library(devtools)
-remotes::install_github("insilico/npdr")
+devtools::install_github("insilico/npdr")
 
 library(npdr)
 ```
-
-### Other Dependencies
 
 Other possible dependencies for running analysis script:
 
@@ -25,8 +23,6 @@ Other possible dependencies for running analysis script:
 install.packages(c("ranger", "reshape2", "dplyr", "caret", "glmnet"))
 install.packages(c("speedglm", "wordspace", "doParallel", "foreach"))
 ```
-
-## Details
 
 ## Contact
 
