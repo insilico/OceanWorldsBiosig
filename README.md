@@ -1,7 +1,5 @@
 # OceanWorldsBiosig
-Authors: Lily Clough and Brett McKinney. 
-
-Submitted Paper: Interpretable biosignature detection from ocean world analogue isotope data using nearest-neighbor feature selection 
+Support for submitted Paper: Interpretable biosignature detection from ocean world analogue isotope data using nearest-neighbor feature selection 
 
 ## IRMS Data
 
@@ -27,6 +25,9 @@ Other possible dependencies for running analysis script:
 install.packages(c("ranger", "reshape2", "dplyr", "caret", "glmnet"))
 install.packages(c("speedglm", "wordspace", "doParallel", "foreach"))
 ```
+
+## Authors
+Lily Clough and Brett McKinney
 
 ## Contact
 
