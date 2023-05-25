@@ -15,7 +15,6 @@ Install the NPDR R library as follows.
 # install.packages("devtools") # uncomment to install devtools
 library(devtools)
 devtools::install_github("insilico/npdr")
-
 library(npdr)
 ```
 
