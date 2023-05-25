@@ -1,5 +1,5 @@
 # OceanWorldsBiosig
-Support for submitted Paper: Interpretable biosignature detection from ocean world analogue isotope data using nearest-neighbor feature selection 
+Support for submitted paper: Interpretable biosignature detection from ocean world analogue isotope data using nearest-neighbor feature selection 
 
 ## IRMS Data
 
