@@ -3,7 +3,7 @@ Authors: Lily Clough and Brett McKinney.
 
 ## IRMS Data
 
-This repo contains benchmark ocean world analogue exerimental Isotope Ratio Mass Spec (IRMS) data for biotic and abiotic samples. Download directly from this site to use the data. 
+This repo contains benchmark ocean world analogue exerimental Isotope Ratio Mass Spec (IRMS) data for biotic and abiotic samples. Download directly from this site to use the data. The data can be found in two places: `new_results/data` and `paper_results/data`.
 
 ## Analysis Script
 

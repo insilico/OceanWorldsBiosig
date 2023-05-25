@@ -1,6 +1,5 @@
-#### biotic-abiotic feature selection with npdr 
-#### and classification using random forest
-# libraries
+#### biotic-abiotic feature selection with NPDR and classification using random forest
+# load libraries
 library(ranger)
 library(reshape2)
 library(dplyr)
@@ -8,19 +7,19 @@ library(npdr)
 library(caret)
 library(doParallel)
 library(foreach)
+library(glm2)
+library(igraph)
+library(forcats)
 
 # set working dir to script path, works in RStudio
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-# and then data subdir
-setwd("./data/")
 
 ##################
-# Part I: read in training and testing dat
+# Part I: read in training and testing data
 ##################
 # read in previously processed training and testing data
-
 # training data
-train.dat<-read.csv("tsms_0.3p_bio_train.csv")
+train.dat<-read.csv("./data/tsms_0.3p_bio_train.csv")
 train.dat<-train.dat%>%select(!Analysis)
 head(colnames(train.dat))
 # [1] "x_acf1"      "x_acf10"     "diff1_acf1"  "diff1_acf10" "diff2_acf1" 
@@ -36,7 +35,7 @@ table(train.dat$biotic)
 #     89      51 
 
 # testing data
-test.dat<-read.csv("tsms_0.3p_bio_test.csv")
+test.dat<-read.csv("./data/tsms_0.3p_bio_test.csv")
 test.dat<-test.dat%>%select(!Analysis)
 dim(test.dat)
 # [1]  34 105
@@ -44,6 +43,7 @@ dim(test.dat)
 table(test.dat$biotic)
 # abiotic  biotic 
 #      22      12 
+
 
 
 ##################
@@ -103,11 +103,9 @@ head(urfp.dist)[,1:3]
 # [6,] 0.9639590 0.6650833 0.9660394
 
 # write distance matrix to file (could be used in other analyses)
-# write.table(urfp.dist,"urfp_dist_bioAbio.csv",row.names=F,col.names=F,quote=F,sep=",")
-urfp.dist<-read.csv("urfp_dist_bioAbio.csv")
+write.table(urfp.dist,"./npdr_dist_output/urfp_dist_bioAbio.csv",row.names=F,col.names=F,quote=F,sep=",")
 
 
- 
 ##################
 # Part III: LASSO-penalized NPDR feature selection with URFP distance
 ##################
@@ -122,7 +120,8 @@ bio_npdrURFP <- npdr::npdr("biotic", train.dat,
                            knn=knnSURF.balanced(train.dat$biotic, 
                                                 sd.frac = .5),
                            use.glmnet = T, glmnet.alpha = 1, 
-                           glmnet.lower = 0, glmnet.lam=0.00001,#"lambda.min",
+                           glmnet.lower = 0, 
+                           glmnet.lam=0.00001,#"lambda.min",# use val below lambda.min
                            neighbor.sampling="none", dopar.nn = F, dopar.reg=F,
                            padj.method="bonferroni", verbose=T)
 end<-Sys.time()
@@ -132,6 +131,7 @@ npdr.time
 npdr_scores<-bio_npdrURFP %>% tibble::rownames_to_column(var = "features") %>%
   filter(scores!=0, features!="intercept")
 npdr_scores
+# paper result: could differ due to tuning parameter lambda 
 #            features       scores
 # 1   avg_R45CO244CO2 3.369468e+03
 # 2  avg_rR45CO244CO2 3.891871e+02
@@ -144,8 +144,7 @@ npdr_scores
 # 9   avg_d45CO244CO2 3.508453e-08
 
 # save features to file 
-#write.table(npdr_scores,"lasso_npdr_urfp_features.csv",sep=",")
-npdr_scores<-read.csv("lasso_npdr_urfp_features.csv")
+write.table(npdr_scores,"./npdr_dist_output/lasso_npdr_urfp_features.csv",sep=",")
 
 
 ##################
@@ -197,7 +196,7 @@ bestFull_splitRule<-rf1$bestTune$splitrule
 
 
 # tune the number of trees using best params from previous run
-fileName<-"maxtrees_out.csv" # for parallel output
+fileName<-"./tuning_output/maxtrees_out.csv" # for parallel output
 
 tuneGrid2<-expand.grid(.mtry=bestFull_mtry,
                        .splitrule=bestFull_splitRule,
@@ -231,14 +230,14 @@ rf.time<-end-start
 rf.time
 # Time difference of 2.320716 mins
 
-tree.results<-read.csv("maxtrees_out.csv",header=F)
+# read in file from manual tree tuning 
+tree.results<-read.csv("./tuning_output/maxtrees_out.csv",header=F)
 colnames(tree.results)<-c("maxtrees","Accuracy")
 maxFull_acc<-tree.results[which.max(tree.results$Accuracy),]
 maxFull_acc 
 #   maxtrees Accuracy
 # 4     6000 0.857827
 bestFull_maxTree<-maxFull_acc$maxtrees
-
 
 ### run a final model
 rfFullFinal.fit <- ranger(biotic ~ ., train.dat, keep.inbag = TRUE,
@@ -303,14 +302,15 @@ confusionMatrix(predFullFinal.test$predictions,test.dat$biotic)
 
 #### save model, test, train and predicted values
 # save best model, training and testing data
-saveRDS(rfFullFinal.fit, "bioAbio_fullVarRF_bestFit.rds")
+saveRDS(rfFullFinal.fit, "./model_output/bioAbio_fullVarRF_bestFit.rds")
 # save predictions
 fullTrain.dat<-train.dat
 fullTrain.dat$pred<-rfFullFinal.fit$predictions
 fullTest.dat<-test.dat
 fullTest.dat$pred<-predFullFinal.test$predictions
-write.table(fullTrain.dat,"bioAbio_fullVarRF_train.csv",quote=F,row.names=F,sep=",")
-write.table(fullTest.dat,"bioAbio_fullVarRF_test.csv",quote=F,row.names=F,sep=",")
+write.table(fullTrain.dat,"./model_output/bioAbio_fullVarRF_train.csv",quote=F,row.names=F,sep=",")
+write.table(fullTest.dat,"./model_output/bioAbio_fullVarRF_test.csv",quote=F,row.names=F,sep=",")
+
 
 ##################
 # Part V: parameter tuning and supervised RF in the LASSO-NPDR-URFP variable space
@@ -371,7 +371,7 @@ bestNpdr_splitRule<-rf2$bestTune$splitrule
 
 
 # tune the number of trees using best params from previous run
-fileName<-"maxtrees2_out.csv" # for parallel output
+fileName<-"./tuning_output/maxtrees2_out.csv" # for parallel output
 
 tuneGrid2<-expand.grid(.mtry=bestNpdr_mtry,
                        .splitrule=bestNpdr_splitRule,
@@ -405,7 +405,7 @@ rf.time<-end-start
 rf.time
 # Time difference of 1.43075 mins
 
-tree.results<-read.csv("maxtrees2_out.csv",header=F)
+tree.results<-read.csv("./tuning_output/maxtrees2_out.csv",header=F)
 colnames(tree.results)<-c("maxtrees","Accuracy")
 maxNpdr_acc<-tree.results[which.max(tree.results$Accuracy),]
 maxNpdr_acc 
@@ -477,17 +477,17 @@ confusionMatrix(predNpdrFinal.test$predictions,selTest.dat$biotic)
 
 #### save model, test, train and predicted values
 # save best model, training and testing data
-saveRDS(rfNpdrFinal.fit, "bioAbio_npdrRF_bestFit.rds")
+saveRDS(rfNpdrFinal.fit, "./model_output/bioAbio_npdrRF_bestFit.rds")
 # save predictions
 selTrainPred.dat<-selTrain.dat
 selTrainPred.dat$pred<-rfNpdrFinal.fit$predictions
 selTestPred.dat<-selTest.dat
 selTestPred.dat$pred<-predNpdrFinal.test$predictions
-write.table(selTrainPred.dat,"bioAbio_npdrVarRF_train.csv",quote=F,row.names=F,sep=",")
-write.table(selTestPred.dat,"bioAbio_npdrVarRF_test.csv",quote=F,row.names=F,sep=",")
+write.table(selTrainPred.dat,"./model_output/bioAbio_npdrVarRF_train.csv",quote=F,row.names=F,sep=",")
+write.table(selTestPred.dat,"./model_output/bioAbio_npdrVarRF_test.csv",quote=F,row.names=F,sep=",")
 
 
-##################
+####################
 # Part VI: LASSO-penalized NPDR feature selection with Manhattan 
 #          distance and supervised RF
 #############
@@ -524,14 +524,13 @@ npdrMan_scores
 # 9      time_kl_shift 3.073866e-05
 # 10   avg_d45CO244CO2 3.855818e-08
 # save features to file 
-write.table(npdrMan_scores,"lasso_npdr_manhattan_features.csv",sep=",")
+write.table(npdrMan_scores,"./npdr_dist_output/lasso_npdr_manhattan_features.csv",sep=",")
 
-
+# training and testing data using selected features 
 manTrain.dat<-train.dat
 manTest.dat<-test.dat
 npdrMan.feat<-npdrMan_scores$features
 npdrMan.ind<-which(colnames(train.dat) %in% c(npdrMan.feat,"biotic"))
-
 manTrain.dat<-manTrain.dat[,npdrMan.ind]
 manTest.dat<-manTest.dat[,npdrMan.ind]
 
@@ -577,7 +576,7 @@ bestMan_splitRule<-rf3$bestTune$splitrule
 
 
 # tune the number of trees using best params from previous run
-fileName<-"maxtrees3_out.csv" # for parallel output
+fileName<-"./tuning_output/maxtrees3_out.csv" # for parallel output
 
 tuneGrid2<-expand.grid(.mtry=bestMan_mtry,
                        .splitrule=bestMan_splitRule,
@@ -611,7 +610,7 @@ rf.time<-end-start
 rf.time
 # Time difference of 1.361518 mins
 
-tree.results<-read.csv("maxtrees3_out.csv",header=F)
+tree.results<-read.csv("./tuning_output/maxtrees3_out.csv",header=F)
 colnames(tree.results)<-c("maxtrees","Accuracy")
 maxNpdr_acc<-tree.results[which.max(tree.results$Accuracy),]
 maxNpdr_acc 
@@ -683,23 +682,24 @@ confusionMatrix(predManFinal.test$predictions,manTest.dat$biotic)
 
 #### save model, test, train and predicted values
 # save best model, training and testing data
-saveRDS(rfManFinal.fit, "bioAbio_npdrMan_bestFit.rds")
+saveRDS(rfManFinal.fit, "./model_output/bioAbio_npdrMan_bestFit.rds")
 
 # save predictions
 manTrainPred.dat<-manTrain.dat
 manTrainPred.dat$pred<-rfManFinal.fit$predictions
 manTestPred.dat<-manTest.dat
 manTestPred.dat$pred<-predManFinal.test$predictions
-write.table(manTrainPred.dat,"bioAbio_npdrManVarRF_train.csv",quote=F,row.names=F,sep=",")
-write.table(manTestPred.dat,"bioAbio_npdrManVarRF_test.csv",quote=F,row.names=F,sep=",")
+write.table(manTrainPred.dat,"./model_output/bioAbio_npdrManVarRF_train.csv",quote=F,row.names=F,sep=",")
+write.table(manTestPred.dat,"./model_output/bioAbio_npdrManVarRF_test.csv",quote=F,row.names=F,sep=",")
 
 
 
 ##################
 # Part VII: probability forest for LASSO-NPDR-URFP features
-#############
+##################
 ## make a probability forest for case wise importance analysis
 # using LASSO-NPDR-URFP features and make a probability forest
+selTrain.dat$biotic<-as.factor(selTrain.dat$biotic)
 rfNpdrProb.fit <- ranger(biotic ~ ., selTrain.dat, keep.inbag = TRUE,
                           num.trees=bestNpdr_maxTree, # match full variable num trees
                           mtry=bestNpdr_mtry, 
@@ -727,15 +727,15 @@ head(prob.df)
 train.miss<-which(rfNpdrFinal.fit$predictions != selTrain.dat$biotic)
 test.miss<-which(predNpdrFinal.test$predictions != selTest.dat$biotic)
 
-
-trainAnalysis.dat<-read.csv("tsms_0.3p_bio_train.csv")
-testAnalysis.dat<-read.csv("tsms_0.3p_bio_test.csv")
+# read in data with analysis numbers
+trainAnalysis.dat<-read.csv("./data/tsms_0.3p_bio_train.csv")
+testAnalysis.dat<-read.csv("./data/tsms_0.3p_bio_test.csv")
 
 an1miss<-trainAnalysis.dat$Analysis[train.miss]
 an2miss<-testAnalysis.dat$Analysis[test.miss]
 an.miss<-c(an1miss,an2miss)
-an.miss<-c(5757,5770,5784,5878,5880,5885,5886,5892,5894,5897,5911,5917,5953,
-           5960, 5933)
+# an.miss<-c(5757,5770,5784,5878,5880,5885,5886,5892,5894,5897,5911,5917,5953,
+#            5960, 5933)
 
 # make predicted and actual class vectors
 predAll.vec<-c(rfNpdrFinal.fit$predictions,predNpdrFinal.test$predictions)
@@ -743,7 +743,7 @@ bioAct.vec<-c(selTrain.dat$biotic,selTest.dat$biotic)
 # make dataset vectors (to tell whether analysis was in training or testing data)
 trainTest.vec<-rep("train",140)
 trainTest.vec<-c(trainTest.vec,rep("test",34))
-# replace categorical integers with labels (Fortran RF used integers for class in previous analyses)
+# replace categorical integers with labels (from factors)
 pred.vec<-rep("abiotic",length(predAll.vec))
 pred.vec[which(predAll.vec==2)]<-"biotic"
 bio.vec<-rep("abiotic",length(bioAct.vec))
@@ -828,7 +828,7 @@ missClassProb.df
 ### insepct two correct classifications (biotic/abiotic) and two incorrect 
 # try Analyses 2962 (correct biotic), 5880 (incorrect biotic), 
 # 5918 (correct abiotic), 5933 (incorrect abiotic)
-inspAn<-c(2962,5880,5918,5933)
+inspAn<-c(2962,5880,5918,5933) # edit for runs with other misclassifications
 
 # make one df for probabilities and predicted classes
 classProb.df<-cbind.data.frame(pred.df,prob.df[,1:2])
@@ -851,13 +851,13 @@ classProb.df[which(classProb.df$Analysis %in% inspAn),]
 # 168 abiotic  biotic     5933      test 0.4024459 0.5975541*
 
 ## save classProb.df to file
-#write.table(classProb.df,"bioAbio_npdrURFP_RF_classProb.csv",quote=F,row.names=F,sep=",")
-classProb.df<-read.csv("bioAbio_npdrURFP_RF_classProb.csv")
+write.table(classProb.df,"./samplewise_output/bioAbio_npdrURFP_RF_classProb.csv",quote=F,row.names=F,sep=",")
+#classProb.df<-read.csv("./samplewise_output/bioAbio_npdrURFP_RF_classProb.csv")
 
 
 
 ##################
-# Part VIII: case-wise variable importancefor all samples (training + testing)
+# Part VIII: case-wise variable importance for all samples (training + testing)
 ####################
 ## now get case-wise variable importance: need to use all data as training data
 allTrain.dat<-rbind.data.frame(selTrain.dat,selTest.dat)
@@ -937,7 +937,7 @@ plotCaseImp
 
 
 ## save to file
-write.table(plotCaseImp,"caseWiseImp_inspectAnalyses.csv",row.names=F,quote=F,sep=",")
+write.table(plotCaseImp,"./samplewise_output/caseWiseImp_inspectAnalyses.csv",row.names=F,quote=F,sep=",")
 
 
 ## created melted df for plotting for each row in plotCaseImp
@@ -1057,7 +1057,7 @@ case.p4
 
 
 ##################
-# Part IV: create biotic and abiotic prototype plots
+# Part IX: create biotic and abiotic prototype plots
 ##############
 ### prototypes for biotic and abiotic classes based on NPDR and RF features
 
@@ -1160,8 +1160,9 @@ protoNpdr.proc<-rbind.data.frame(
   proto.proc[which(proto.proc$variable==npdrColOrder[8]),], 
   proto.proc[which(proto.proc$variable==npdrColOrder[9]),])
 head(protoNpdr.proc)
+
 # write NPDR prototype data to file
-write.table(protoNpdr.proc,"bioAbio_NpdrURFPVars_prototypes.csv",row.names=F,quote=F,sep=",")
+write.table(protoNpdr.proc,"./samplewise_output/bioAbio_NpdrURFPVars_prototypes.csv",row.names=F,quote=F,sep=",")
 
 
 ## plot prototype data
@@ -1179,8 +1180,9 @@ head(melt_proto)
 # 6 fluctanal_prop_r1 abio_50  0.05534674
 
 # tell ggplot to order the x axis by importance
-library(forcats)
-protoNpdr.plot <- ggplot(data=melt_proto, mapping=aes(x=fct_inorder(variable),y=value,group=group)) +
+protoNpdr.plot <- ggplot(data=melt_proto, 
+  mapping=aes(x=fct_inorder(variable),
+  y=value,group=group)) +
   geom_line(aes(color=group),linewidth=0.5) + 
   geom_point(aes(color=group),size=1) +
   theme_bw() + theme(#panel.border = element_blank(), 
@@ -1314,7 +1316,7 @@ head(protoRF.proc2)
 
 
 # write RF prototype data to file
-write.table(protoRF.proc2,"bioAbio_rfTopVars_prototypes.csv",row.names=F,quote=F,sep=",")
+write.table(protoRF.proc2,"./samplewise_output/bioAbio_rfTopVars_prototypes.csv",row.names=F,quote=F,sep=",")
 
 # melt prototype data
 melt_proto2<-melt(protoRF.proc2 %>% select(!c("abio_0", "abio_25","abio_75","abio_100",
@@ -1323,7 +1325,8 @@ melt_proto2<-melt(protoRF.proc2 %>% select(!c("abio_0", "abio_25","abio_75","abi
 colnames(melt_proto2)<-c("variable","group","value")
 
 # tell ggplot to order the x axis by importance
-protoRF.plot <- ggplot(data=melt_proto2, mapping=aes(x=fct_inorder(variable),y=value,group=group)) +
+protoRF.plot <- ggplot(data=melt_proto2, 
+  mapping=aes(x=fct_inorder(variable),y=value,group=group)) +
   geom_line(aes(color=group),linewidth=0.5) + 
   geom_point(aes(color=group),size=1) +
   theme_bw() + theme(#panel.border = element_blank(), 
@@ -1421,23 +1424,22 @@ confusionMatrix(predRFFinal.test$predictions,rfTest.dat$biotic)
 
 #### save model, test, train and predicted values
 # save best model, training and testing data
-saveRDS(rfSelFinal.fit, "bioAbio_selVarRF_bestFit.rds")
+saveRDS(rfSelFinal.fit, "./model_output/bioAbio_selVarRF_bestFit.rds")
 # save predictions
 rfPredTrain.dat<-rfTrain.dat
 rfPredTrain.dat$pred<-rfSelFinal.fit$predictions
 rfPredTest.dat<-rfTest.dat
 rfPredTest.dat$pred<-predRFFinal.test$predictions
-write.table(rfPredTrain.dat,"bioAbio_selVarRF_train.csv",quote=F,row.names=F,sep=",")
-write.table(rfPredTest.dat,"bioAbio_selVarRF_test.csv",quote=F,row.names=F,sep=",")
+write.table(rfPredTrain.dat,"./model_output/bioAbio_selVarRF_train.csv",quote=F,row.names=F,sep=",")
+write.table(rfPredTest.dat,"./model_output/bioAbio_selVarRF_test.csv",quote=F,row.names=F,sep=",")
 
 
 ##################
 # Part XI: correlation heatmaps for LASSO-NPDR-URFP features and top RF features
 ##############
 ### Correlation analysis for LASSO-NPDR-URFP selected features and RF top features
-setwd("~/Documents/MLMS/bioAbio/npdr_oct22/data")
 # read in full data
-predictors<-read.csv("tsms_biotic_0.3pCO2_predictors.csv")
+predictors<-read.csv("./data/tsms_biotic_0.3pCO2_predictors.csv")
 dats <- predictors %>% mutate_at("biotic",as.factor)
 npdr.ind<-which(colnames(dats) %in% npdr.feat)
 # subset dats for npdr features
@@ -1463,7 +1465,6 @@ head(corNpdr.dat)[,1:3]
 corRF.dat<-cor(datsRF[,-ncol(datsRF)])
 
 
-
 # Get lower triangle of the correlation matrix
 get_lower_tri<-function(cormat){
   cormat[upper.tri(cormat)] <- NA
@@ -1487,6 +1488,11 @@ reorder_cormat <- function(cormat){
 cormat_npdr <- reorder_cormat(corNpdr.dat)
 # get upper tri
 upper_tri_npdr <- get_upper_tri(cormat_npdr)
+
+# Reorder the correlation matrix rf
+cormat_rf <- reorder_cormat(corRF.dat)
+# get upper tri
+upper_tri_rf <- get_upper_tri(cormat_rf)
 
 # Melt the correlation matrices for plotting 
 melted_cormat_npdr <- melt(upper_tri_npdr, na.rm = TRUE)
@@ -1550,9 +1556,6 @@ print(ggheatmap_rf)
 # future work: Fortran output for RF-detected interactions
 # best-performing model = most parsimonious while preserving high accuracy
 # LASSO-NPDR-URFP is the best-performing model
-library(glm2)
-library(igraph)
-
 msts.regain <- npdr::regain(datsNpdr,
                             indVarNames=colnames(datsNpdr)[-ncol(datsNpdr)],
                             depVarName="biotic",
