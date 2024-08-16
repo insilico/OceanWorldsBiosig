@@ -1,5 +1,7 @@
 # OceanWorldsBiosig
-Support for submitted paper: Interpretable biosignature detection from ocean world analogue isotope data using nearest-neighbor feature selection 
+The data and analysis software will be made public upon publication of the manuscript. 
+
+Support for submitted paper: Interpretable Machine Learning Biosignature Detection from Ocean Worlds Analogue CO2 Isotopologue Data 
 
 ## IRMS Data
 
