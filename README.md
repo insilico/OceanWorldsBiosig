@@ -1,5 +1,5 @@
 # OceanWorldsBiosig
-The data and analysis software will be made public upon publication of the manuscript. 
+**The data and analysis software will be made public upon publication of the manuscript.** 
 
 Support for submitted paper: Interpretable Machine Learning Biosignature Detection from Ocean Worlds Analogue CO2 Isotopologue Data 
 
